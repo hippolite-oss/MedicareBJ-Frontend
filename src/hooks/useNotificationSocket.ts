@@ -20,8 +20,12 @@ export const useNotificationSocket = () => {
     const handleConnect = () => {
       console.log('[Socket] Connecté - Rafraîchissement des notifications...');
       
-      // ⚡ OPTIMISATION 6: Invalider seulement le compteur à la connexion (pas toutes les listes)
-      queryClient.invalidateQueries({ queryKey: ['notif-count'] });
+      // Invalider immédiatement toutes les queries pour récupérer les nouvelles données
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['mes-rdv'] });
+      queryClient.invalidateQueries({ queryKey: ['rdv-jour'] });
+      queryClient.invalidateQueries({ queryKey: ['mon-agenda'] });
+      queryClient.invalidateQueries({ queryKey: ['rdv-en-attente'] });
     };
 
     // Écouter les nouvelles notifications
@@ -29,21 +33,6 @@ export const useNotificationSocket = () => {
       console.log('[Socket] Nouvelle notification reçue:', data);
       
       const notification = data.notification;
-      
-      // ⚡ OPTIMISATION 7: Mettre à jour le compteur IMMÉDIATEMENT (avant le toast)
-      queryClient.setQueryData(['notif-count'], (old: any) => {
-        const currentCount = typeof old === 'number' ? old : (old?.data?.count ?? 0);
-        return currentCount + 1;
-      });
-
-      // ⚡ OPTIMISATION 8: Ajouter la notification directement au cache (pas besoin d'invalider)
-      queryClient.setQueryData(['notifications'], (oldData: any) => {
-        if (!oldData?.notifications) return oldData;
-        return {
-          ...oldData,
-          notifications: [notification, ...oldData.notifications],
-        };
-      });
       
       // Afficher un toast selon le type
       if (notification.type === 'rdv') {
@@ -63,19 +52,28 @@ export const useNotificationSocket = () => {
             duration: 4000,
           });
         }
-        
-        // ⚡ OPTIMISATION 9: Invalider les RDV de manière asynchrone (non-bloquant)
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ['mes-rdv'] });
-          queryClient.invalidateQueries({ queryKey: ['rdv-jour'] });
-          queryClient.invalidateQueries({ queryKey: ['mon-agenda'] });
-          queryClient.invalidateQueries({ queryKey: ['rdv-en-attente'] });
-        }, 100);
       } else {
         toast.info(notification.titre, {
           description: notification.contenu,
           duration: 4000,
         });
+      }
+
+      // Mettre à jour le compteur immédiatement dans le cache
+      queryClient.setQueryData(['notif-count'], (old: any) => {
+        const currentCount = typeof old === 'number' ? old : (old?.data?.count ?? 0);
+        return currentCount + 1;
+      });
+
+      // Invalider les queries pour rafraîchir les listes
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      
+      // Si c'est une notification de RDV, invalider aussi les RDV
+      if (notification.type === 'rdv') {
+        queryClient.invalidateQueries({ queryKey: ['mes-rdv'] });
+        queryClient.invalidateQueries({ queryKey: ['rdv-jour'] });
+        queryClient.invalidateQueries({ queryKey: ['mon-agenda'] });
+        queryClient.invalidateQueries({ queryKey: ['rdv-en-attente'] });
       }
     };
 
