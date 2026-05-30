@@ -108,28 +108,29 @@ export default function Login() {
 
           <Card className="mt-6 rounded-2xl border-dashed">
             <CardContent className="p-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comptes démo</p>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"></p>
               <div className="grid grid-cols-3 gap-2">
                 <DemoBtn icon={User} label="Patient" onClick={() => fillDemo("patient")} />
                 <DemoBtn icon={Stethoscope} label="Médecin" onClick={() => fillDemo("medecin")} />
                 <DemoBtn icon={ShieldCheck} label="Admin" onClick={() => fillDemo("admin")} />
               </div>
-              <p className="mt-2 text-[10px] text-muted-foreground">
-                Mot de passe : <code className="rounded bg-muted px-1">Password123!</code>
-              </p>
             </CardContent>
           </Card>
         </div>
       </div>
 
-        {/* Colonne illustration */}
-        <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary via-primary/95 to-primary/90 lg:flex lg:items-center lg:justify-center">
-          {/* Motif de fond subtil */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-              backgroundSize: '32px 32px'
-            }} />
+         {/* Colonne illustration */}
+        <div className="relative hidden overflow-hidden bg-white lg:flex lg:items-center lg:justify-center">
+          {/* Image médicale en arrière-plan */}
+          <div className="absolute inset-0">
+            <img 
+              src="/doctor-patitent.jpg" 
+              alt="Doctor and patient consultation" 
+              className="h-full w-full object-cover object-center"
+              style={{ objectPosition: 'center 30%' }}
+            />
+            {/* Overlay noir semi-transparent pour améliorer la lisibilité */}
+            <div className="absolute inset-0 bg-black/40" />
           </div>
 
           {/* Contenu centré */}
