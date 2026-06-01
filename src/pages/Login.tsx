@@ -127,7 +127,7 @@ export default function Login() {
               src="/doctor-patitent.jpg" 
               alt="Doctor and patient consultation" 
               className="h-full w-full object-cover object-center"
-              style={{ objectPosition: 'center 30%' }}
+              style={{ objectPosition: 'center 23%' }}
             />
             {/* Overlay noir semi-transparent pour améliorer la lisibilité */}
             <div className="absolute inset-0 bg-black/40" />
