@@ -134,7 +134,7 @@ export default function RegisterPro() {
                       <Field label="Prénom *" value={form.prenom} onChange={(v) => set("prenom", v)} placeholder="Kossi" />
                       <Field label="Nom *" value={form.nom} onChange={(v) => set("nom", v)} placeholder="Adoukonou" />
                     </div>
-                    <Field label="Téléphone" value={form.telephone} onChange={(v) => set("telephone", v)} placeholder="+229 97 XX XX XX" />
+                    <Field label="Téléphone" value={form.telephone} onChange={(v) => set("telephone", v)} placeholder="+229 01 XX XX XX XX" />
                   </div>
                 )}
 

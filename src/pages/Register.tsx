@@ -145,7 +145,7 @@ export default function Register() {
                         ))}
                       </RadioGroup>
                     </div>
-                    <Field label="Téléphone *" value={form.phone} onChange={(v) => set("phone", v)} placeholder="+229 97 XX XX XX" />
+                    <Field label="Téléphone *" value={form.phone} onChange={(v) => set("phone", v)} placeholder="+229 01 XX XX XX XX" />
                   </div>
                 )}
 
