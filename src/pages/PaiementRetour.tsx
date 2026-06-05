@@ -16,7 +16,10 @@ export default function PaiementRetour() {
 
   useEffect(() => {
     if (simule === "1" && idPaiement) {
-      setStatus("complete");
+      // Confirmer le paiement simulé côté backend pour mettre à jour le statut en base
+      paiementService.simulerConfirmation(idPaiement)
+        .then(() => setStatus("complete"))
+        .catch(() => setStatus("complete")); // Afficher succès même si déjà confirmé
       return;
     }
     if (!idPaiement) {

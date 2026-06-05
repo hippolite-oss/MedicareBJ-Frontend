@@ -24,4 +24,8 @@ export const paiementService = {
 
   verifierStatut: (id: string) =>
     api.get(`/paiements/${id}/verifier`),
+
+  // ⚠️ Sandbox uniquement — confirme un paiement simulé côté backend
+  simulerConfirmation: (id: string) =>
+    api.post(`/paiements/${id}/simuler-confirmation`),
 };
