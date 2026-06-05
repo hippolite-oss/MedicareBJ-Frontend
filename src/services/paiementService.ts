@@ -21,4 +21,7 @@ export const paiementService = {
 
   listAdmin: (params?: Record<string, unknown>) =>
     api.get('/paiements', { params }),
+
+  verifierStatut: (id: string) =>
+    api.get(`/paiements/${id}/verifier`),
 };

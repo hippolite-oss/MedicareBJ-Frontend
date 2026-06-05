@@ -10,6 +10,9 @@ export const rendezVousService = {
   creer: (data: Record<string, unknown>) =>
     api.post('/rendezvous', data),
 
+  demandePaiement: (data: Record<string, unknown>) =>
+    api.post('/rendezvous/demande-paiement', data),
+
   getMesRdv: (params?: Record<string, unknown>) =>
     api.get('/rendezvous/mes-rdv', { params }),
 

@@ -7,8 +7,10 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useMesRdv, useMedecinsDisponibles, useCreerRdv } from "@/hooks/useQueries";
+import { useMesRdv, useMedecinsDisponibles } from "@/hooks/useQueries";
 import { rendezVousService } from "@/services/rendezVousService";
+import { PaymentForm } from "@/components/PaymentForm";
+import { fmtFcfa, processPaymentInitiation, TARIF_CONSULTATION_RDV, type PaymentMode } from "@/utils/paymentUtils";
 import { toast } from "sonner";
 import { Plus, ChevronLeft, ChevronRight, Clock, CalendarDays, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,11 +32,12 @@ export default function RendezVous() {
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [disponibilites, setDisponibilites] = useState<any>(null);
   const [loadingDispo, setLoadingDispo] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [demandePaiement, setDemandePaiement] = useState<{ id_paiement: string; hopital: { nom: string; telephone: string } } | null>(null);
   const qc = useQueryClient();
 
   const { data: rdvData, isLoading } = useMesRdv();
   const { data: medData } = useMedecinsDisponibles();
-  const creerRdv = useCreerRdv();
 
   const rdvList: any[] = rdvData?.rdv ?? [];
   const medecins: any[] = medData?.medecins ?? [];
@@ -76,6 +79,8 @@ export default function RendezVous() {
     setChosenDate(null);
     setReason("");
     setDisponibilites(null);
+    setDemandePaiement(null);
+    setPaymentLoading(false);
   };
 
   // Fonction pour récupérer les disponibilités du médecin
@@ -143,22 +148,60 @@ export default function RendezVous() {
     }
   }, [chosenDate, chosenDoctor, cursor]);
 
-  const handleSubmit = async () => {
-    if (!chosenDoctor || !chosenDate || !chosenSlot) return;
-    const dateHeure = new Date(cursor.getFullYear(), cursor.getMonth(), chosenDate);
-    const [h, m] = chosenSlot.split(":").map(Number);
+  const buildDateHeure = () => {
+    const dateHeure = new Date(cursor.getFullYear(), cursor.getMonth(), chosenDate!);
+    const [h, m] = chosenSlot!.split(":").map(Number);
     dateHeure.setHours(h, m, 0, 0);
+    return dateHeure;
+  };
+
+  const getIdMedecin = () =>
+    chosenDoctor?.utilisateur?.id ?? chosenDoctor?.Utilisateur?.id ?? chosenDoctor?.id_utilisateur;
+
+  const preparePayment = async () => {
+    if (!chosenDoctor || !chosenDate || !chosenSlot) return;
+    setPaymentLoading(true);
     try {
-      await creerRdv.mutateAsync({
-        id_medecin: chosenDoctor.utilisateur?.id ?? chosenDoctor.Utilisateur?.id ?? chosenDoctor.id_utilisateur,
-        date_heure: dateHeure.toISOString(),
+      const res: any = await rendezVousService.demandePaiement({
+        id_medecin: getIdMedecin(),
+        date_heure: buildDateHeure().toISOString(),
         motif: reason,
       });
-      toast.success("Rendez-vous confirmé !");
-      setOpen(false);
-      reset();
+      const data = res?.data ?? res;
+      setDemandePaiement({ id_paiement: data.id_paiement, hopital: data.hopital });
+      setStep(4);
     } catch (err: any) {
-      toast.error(err?.message ?? "Erreur lors de la prise de RDV");
+      toast.error(err?.message ?? "Impossible de préparer le paiement");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handlePayment = async (mode: PaymentMode, telephone: string) => {
+    if (!demandePaiement) return;
+    setPaymentLoading(true);
+    try {
+      const result = await processPaymentInitiation(
+        demandePaiement.id_paiement,
+        TARIF_CONSULTATION_RDV,
+        mode,
+        telephone,
+      );
+      if (result.ok) {
+        toast.success("Rendez-vous enregistré !", {
+          description: "Le médecin doit encore confirmer votre créneau.",
+        });
+        qc.invalidateQueries({ queryKey: ["mes-rdv"] });
+        qc.invalidateQueries({ queryKey: ["mes-paiements"] });
+        setOpen(false);
+        reset();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Erreur lors du paiement");
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -316,7 +359,7 @@ export default function RendezVous() {
 
           {/* Stepper */}
           <div className="mb-4 flex items-center gap-2">
-            {["Médecin","Date & Heure","Motif"].map((label, i) => {
+            {["Médecin","Date & Heure","Motif","Paiement"].map((label, i) => {
               const s = i + 1;
               return (
                 <div key={s} className="flex flex-1 items-center gap-2">
@@ -327,7 +370,7 @@ export default function RendezVous() {
                     )}>{s}</span>
                     <span className={cn("hidden text-xs font-medium sm:block", step === s ? "text-primary" : "text-muted-foreground")}>{label}</span>
                   </div>
-                  {s < 3 && <span className={cn("h-0.5 flex-1", step > s ? "bg-primary" : "bg-muted")} />}
+                  {s < 4 && <span className={cn("h-0.5 flex-1", step > s ? "bg-primary" : "bg-muted")} />}
                 </div>
               );
             })}
@@ -355,6 +398,7 @@ export default function RendezVous() {
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold">Dr. {u.prenom} {u.nom}</p>
                         <p className="text-xs text-muted-foreground">{m.specialite} · {m.hopital?.nom ?? "—"}</p>
+                        <p className="text-xs font-medium text-primary">Consultation : {fmtFcfa(TARIF_CONSULTATION_RDV)}</p>
                       </div>
                     </button>
                   );
@@ -455,17 +499,44 @@ export default function RendezVous() {
                   {chosenDate && new Date(cursor.getFullYear(), cursor.getMonth(), chosenDate).toLocaleDateString("fr-FR", { dateStyle: "long" })} à {chosenSlot}
                 </p>
               </div>
+              <div className="rounded-lg border border-dashed border-primary/30 bg-primary-soft/50 p-3 text-xs text-muted-foreground">
+                Le rendez-vous ne sera enregistré qu&apos;après le paiement de <strong>{fmtFcfa(TARIF_CONSULTATION_RDV)}</strong> vers l&apos;établissement du médecin.
+              </div>
               <div className="flex justify-between">
                 <Button variant="ghost" onClick={() => setStep(2)}>Précédent</Button>
                 <Button
-                  onClick={handleSubmit}
-                  disabled={creerRdv.isPending}
+                  onClick={preparePayment}
+                  disabled={paymentLoading}
                   className="bg-gradient-primary shadow-glow"
                 >
-                  {creerRdv.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Confirmer le rendez-vous
+                  {paymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Continuer vers le paiement
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* Step 4 — Paiement */}
+          {step === 4 && demandePaiement && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-muted/40 p-4 text-sm space-y-1">
+                <p className="font-semibold">
+                  Dr. {chosenDoctor?.utilisateur?.prenom ?? chosenDoctor?.Utilisateur?.prenom}{" "}
+                  {chosenDoctor?.utilisateur?.nom ?? chosenDoctor?.Utilisateur?.nom}
+                </p>
+                <p className="flex items-center gap-2 text-muted-foreground">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {chosenDate && new Date(cursor.getFullYear(), cursor.getMonth(), chosenDate).toLocaleDateString("fr-FR", { dateStyle: "long" })} à {chosenSlot}
+                </p>
+              </div>
+              <PaymentForm
+                montant={TARIF_CONSULTATION_RDV}
+                hopital={demandePaiement.hopital}
+                loading={paymentLoading}
+                submitLabel={`Payer et confirmer le RDV`}
+                onSubmit={handlePayment}
+              />
+              <Button variant="ghost" className="w-full" onClick={() => setStep(3)}>Précédent</Button>
             </div>
           )}
         </DialogContent>

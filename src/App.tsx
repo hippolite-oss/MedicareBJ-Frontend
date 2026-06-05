@@ -18,6 +18,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import RegisterPro from "./pages/RegisterPro";
 import NotFound from "./pages/NotFound";
+import PaiementRetour from "./pages/PaiementRetour";
 
 // Pages patient
 import PatientDashboard from "./pages/patient/Dashboard";
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/register/pro" element={<RegisterPro />} />
+              <Route path="/paiement/retour" element={<PaiementRetour />} />
 
               {/* ── PATIENT ── */}
               <Route path="/patient" element={<PatientLayout />}>

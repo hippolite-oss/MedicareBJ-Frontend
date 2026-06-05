@@ -5,7 +5,7 @@ type StatusKey =
   | "actif" | "inactif" | "en_attente" | "valide" | "suspendu"
   | "planifie" | "confirme" | "annule" | "termine" | "en_cours" | "traite"
   | "active" | "terminee" | "annulee"
-  | "a_payer" | "paye" | "echec"
+  | "a_payer" | "paye" | "echec" | "complete" | "echoue" | "rembourse"
   | "disponible" | "lecture" | "ecriture" | "revoque" | "expire"
   | "succes" | "rejete" | "valide_status";
 
@@ -28,6 +28,9 @@ const STYLES: Record<StatusKey, { label: string; className: string }> = {
   a_payer:     { label: "À payer",      className: "bg-accent/15 text-accent-foreground ring-accent/30" },
   paye:        { label: "Payé",         className: "bg-success/10 text-success ring-success/20" },
   echec:       { label: "Échec",        className: "bg-destructive/10 text-destructive ring-destructive/20" },
+  complete:    { label: "Payé",         className: "bg-success/10 text-success ring-success/20" },
+  echoue:      { label: "Échoué",       className: "bg-destructive/10 text-destructive ring-destructive/20" },
+  rembourse:   { label: "Remboursé",    className: "bg-muted text-muted-foreground ring-border" },
   lecture:     { label: "Lecture",      className: "bg-info/10 text-info ring-info/20" },
   ecriture:    { label: "Lecture+Écriture", className: "bg-primary/10 text-primary ring-primary/20" },
   revoque:     { label: "Révoqué",      className: "bg-destructive/10 text-destructive ring-destructive/20" },

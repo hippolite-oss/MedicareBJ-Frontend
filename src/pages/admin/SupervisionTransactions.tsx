@@ -6,8 +6,13 @@ import { Button } from "@/components/ui/button";
 import { useTransactions } from "@/hooks/useQueries";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { CreditCard, TrendingUp, CheckCircle, XCircle, Download, Loader2 } from "lucide-react";
+import { getPaiementLabel } from "@/utils/paymentUtils";
 
 const fmt = (n: number) => n.toLocaleString("fr-FR") + " FCFA";
+
+function getHopitalLabel(t: any) {
+  return t.metadata?.hopital?.nom ?? t.rendezvous?.hopital?.nom ?? "—";
+}
 
 export default function SupervisionTransactions() {
   const { data, isLoading } = useTransactions({ limit: 100 });
@@ -104,6 +109,8 @@ export default function SupervisionTransactions() {
                 <tr>
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Patient</th>
+                  <th className="px-4 py-3 font-medium">Libellé</th>
+                  <th className="px-4 py-3 font-medium">Établissement</th>
                   <th className="px-4 py-3 font-medium">Montant</th>
                   <th className="px-4 py-3 font-medium">Mode</th>
                   <th className="px-4 py-3 font-medium">Référence</th>
@@ -112,7 +119,7 @@ export default function SupervisionTransactions() {
               </thead>
               <tbody>
                 {paiements.length === 0
-                  ? <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Aucune transaction.</td></tr>
+                  ? <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Aucune transaction.</td></tr>
                   : paiements.map((t: any) => (
                     <tr key={t.id} className="border-t border-border hover:bg-muted/30">
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
@@ -121,6 +128,8 @@ export default function SupervisionTransactions() {
                       <td className="px-4 py-3 font-medium">
                         {t.patient?.prenom} {t.patient?.nom}
                       </td>
+                      <td className="px-4 py-3 text-muted-foreground">{getPaiementLabel(t)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{getHopitalLabel(t)}</td>
                       <td className="px-4 py-3 font-semibold">{fmt(Number(t.montant))}</td>
                       <td className="px-4 py-3 text-muted-foreground">{t.mode_paiement?.replace("_", " ").toUpperCase() ?? "—"}</td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{t.numero_recu ?? t.reference_externe ?? "—"}</td>
