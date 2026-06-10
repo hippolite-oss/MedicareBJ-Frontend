@@ -42,6 +42,38 @@ export async function pollPaymentStatus(
   return "timeout";
 }
 
+/**
+ * Ouvre le modal FedaPay avec le token reçu du backend.
+ * Retourne une Promise qui se résout quand le paiement est complété ou fermé.
+ */
+function ouvrirModalFedaPay(token: string): Promise<"complete" | "close"> {
+  return new Promise((resolve) => {
+    const env = import.meta.env.VITE_FEDAPAY_ENV === "live" ? "live" : "sandbox";
+
+    // FedaPay injecté via le script dans index.html
+    const FedaPay = (window as any).FedaPay;
+    if (!FedaPay) {
+      console.error("FedaPay widget non chargé");
+      resolve("close");
+      return;
+    }
+
+    FedaPay.init({
+      public_key: import.meta.env.VITE_FEDAPAY_PUBLIC_KEY,
+      transaction: { token },
+      environment: env,
+      onComplete(resp: any) {
+        const status = String(resp?.reason || "").toLowerCase();
+        if (status === "approved" || status === "complete" || status === "completed") {
+          resolve("complete");
+        } else {
+          resolve("close");
+        }
+      },
+    }).open();
+  });
+}
+
 export async function processPaymentInitiation(
   idPaiement: string,
   montant: number,
@@ -52,7 +84,8 @@ export async function processPaymentInitiation(
     return { ok: false, message: "Numéro invalide. Format : +22901XXXXXXXX ou 01XXXXXXXX" };
   }
 
-  const normalizedPhone = mode === "fedapay" ? telephone : normalizeTelephoneBJ(telephone) ?? telephone;
+  const normalizedPhone =
+    mode === "fedapay" ? telephone : normalizeTelephoneBJ(telephone) ?? telephone;
 
   const res: any = await paiementService.initier({
     id_paiement: idPaiement,
@@ -62,21 +95,45 @@ export async function processPaymentInitiation(
   });
 
   const data = res?.data ?? res;
-  if (data?.payment_url && !data?.sans_redirection) {
+
+  // Mode Mobile Money (MTN / Moov) — pas de redirection, polling
+  if (data?.sans_redirection) {
+    const statut = await pollPaymentStatus(idPaiement);
+    if (statut === "complete") {
+      const verify: any = await paiementService.verifierStatut(idPaiement);
+      return { ok: true, rdvCreated: !!verify?.data?.id_rdv };
+    }
+    if (statut === "echoue") {
+      return { ok: false, message: "Le paiement a échoué. Réessayez." };
+    }
+    return {
+      ok: false,
+      message: "Paiement en cours — confirmez sur votre téléphone puis vérifiez dans Paiements.",
+    };
+  }
+
+  // Mode FedaPay carte — ouvrir le MODAL officiel FedaPay avec le token
+  if (data?.payment_token) {
+    const modalResult = await ouvrirModalFedaPay(data.payment_token);
+
+    if (modalResult === "complete") {
+      // Vérifier le statut réel côté backend après confirmation du modal
+      const statut = await pollPaymentStatus(idPaiement, 10, 2000);
+      if (statut === "complete") {
+        const verify: any = await paiementService.verifierStatut(idPaiement);
+        return { ok: true, rdvCreated: !!verify?.data?.id_rdv };
+      }
+      return { ok: true, rdvCreated: false };
+    }
+
+    return { ok: false, message: "Paiement annulé ou fermé." };
+  }
+
+  // Fallback : redirection classique si pas de token (ne devrait pas arriver)
+  if (data?.payment_url) {
     window.location.href = data.payment_url;
     return { ok: true, rdvCreated: false };
   }
 
-  const statut = await pollPaymentStatus(idPaiement);
-  if (statut === "complete") {
-    const verify: any = await paiementService.verifierStatut(idPaiement);
-    return { ok: true, rdvCreated: !!verify?.data?.id_rdv };
-  }
-  if (statut === "echoue") {
-    return { ok: false, message: "Le paiement a échoué. Réessayez." };
-  }
-  return {
-    ok: false,
-    message: "Paiement en cours — confirmez sur votre téléphone puis vérifiez dans Paiements.",
-  };
+  return { ok: false, message: "Erreur lors de l'initiation du paiement." };
 }
